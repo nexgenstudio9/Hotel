@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Serenity Residence | ระบบบริหารจัดการโรงแรมครบวงจร</title>
+    <meta name="description" content="Luxury Hotel Booking System">
+    <meta name="keywords" content="hotel, booking">
+    
+    <!-- Libraries -->
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        gold: { 400: '#d4af37', 500: '#c5a028', 600: '#aa8a22' },
+                        navy: { 800: '#1a202c', 900: '#111827' }
+                    },
+                    fontFamily: {
+                        sans: ['Prompt', 'sans-serif'],
+                        serif: ['Playfair Display', 'serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style id="dynamic-theme-style"></style>
+    <style>
+        @media print { .no-print { display: none !important; } body { background: white; } }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #c5a028; border-radius: 3px; }
+        .modal-open { overflow: hidden; }
+        .toggle-checkbox:checked { right: 0; border-color: #68D391; }
+        .toggle-checkbox:checked + .toggle-label { background-color: #68D391; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .toast-enter { animation: slideIn 0.3s ease-out forwards; }
+    </style>
+</head>
+<body class="font-sans text-gray-800 bg-gray-50">
+
+    <!-- TOAST CONTAINER -->
+    <div id="toast-container" class="fixed top-24 right-5 z-[60] flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- ==================== PUBLIC WEBSITE ==================== -->
+    <div id="app-front" class="block transition-opacity duration-500">
+        <nav class="fixed w-full z-40 bg-white/95 backdrop-blur shadow-sm transition-all" id="navbar">
+            <div class="container mx-auto px-6 py-4 flex justify-between items-center">
+                <a href="#" class="flex items-center gap-2">
+                    <i class="fa-solid fa-hotel text-gold-500 text-2xl brand-logo-icon"></i>
+                    <img id="brand-logo-img" src="" class="h-10 hidden">
+                    <span class="font-serif text-2xl font-bold text-navy-900 tracking-wider brand-name-th">SERENITY</span>
+                </a>
+                <div class="hidden md:flex items-center space-x-6">
+                    <a href="#home" class="hover:text-gold-600">หน้าแรก</a>
+                    <a href="#rooms" class="hover:text-gold-600">ห้องพัก</a>
+                    <div id="nav-auth-guest" class="flex gap-2">
+                        <button onclick="openModal('loginModal')" class="text-navy-900 font-medium">เข้าสู่ระบบ</button>
+                        <button onclick="openModal('registerModal')" class="bg-navy-900 text-white px-4 py-1 rounded hover:bg-gold-500 transition btn-primary">สมัครสมาชิก</button>
+                    </div>
+                    <div id="nav-auth-user" class="hidden flex items-center gap-4">
+                        <span id="user-display-name" class="font-bold text-gold-600"></span>
+                        <button id="btn-go-admin" onclick="app.router.goAdmin()" class="hidden text-xs bg-red-600 text-white px-2 py-1 rounded">ระบบหลังบ้าน</button>
+                        <button onclick="app.auth.logout()" class="text-gray-500"><i class="fa-solid fa-right-from-bracket"></i></button>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <header id="home" class="h-[60vh] bg-cover bg-center flex items-center justify-center text-white text-center relative transition-all" style="background-image: url('https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1920&q=80');">
+            <div class="bg-black/40 absolute inset-0"></div>
+            <div class="relative z-10 px-4">
+                <h1 class="font-serif text-5xl md:text-6xl font-bold mb-4 brand-name-en">Experience Luxury</h1>
+                <p class="text-lg md:text-xl mb-8 text-gray-200 brand-slogan">พักผ่อนในบรรยากาศสุดพิเศษ พร้อมบริการระดับ 5 ดาว</p>
+                <a href="#rooms" class="border border-white px-8 py-3 hover:bg-white hover:text-navy-900 transition">จองห้องพัก</a>
+            </div>
+        </header>
+
+        <section id="rooms" class="py-20 container mx-auto px-4">
+            <div class="text-center mb-12"><h2 class="font-serif text-3xl font-bold text-navy-900">ห้องพักของเรา</h2></div>
+            <div id="public-room-grid" class="grid grid-cols-1 md:grid-cols-3 gap-8"></div>
+        </section>
+
+        <footer class="bg-navy-900 text-white py-10 footer-bg">
+            <div class="container mx-auto px-4 grid grid-cols-1 md:grid-cols-3 gap-8 text-sm">
+                <div>
+                    <h3 class="font-serif text-xl font-bold text-gold-500 mb-4 brand-name-th">The Serenity</h3>
+                    <p class="text-gray-400 brand-address mb-2">...</p>
+                    <p class="text-gray-400 text-xs"><i class="fa-solid fa-clock mr-1"></i> Check-in: <span id="brand-checkin">14:00</span> | Check-out: <span id="brand-checkout">12:00</span></p>
+                </div>
+                <div><h3 class="font-bold mb-4">ติดต่อเรา</h3><p class="text-gray-400 mb-2"><i class="fa-solid fa-phone mr-2"></i> <span class="brand-phone">...</span></p><p class="text-gray-400 mb-2"><i class="fa-solid fa-envelope mr-2"></i> <span class="brand-email">...</span></p><p class="text-gray-400"><i class="fa-brands fa-line mr-2"></i> <span id="brand-line">...</span></p></div>
+                <div><h3 class="font-bold mb-4">ติดตามข่าวสาร</h3><div class="flex gap-4"><a href="#" id="social-fb" target="_blank" class="text-2xl text-gray-400 hover:text-gold-500 hidden"><i class="fa-brands fa-facebook"></i></a><a href="#" id="social-line" target="_blank" class="text-2xl text-gray-400 hover:text-gold-500 hidden"><i class="fa-brands fa-line"></i></a><a href="#" id="social-ig" target="_blank" class="text-2xl text-gray-400 hover:text-gold-500 hidden"><i class="fa-brands fa-instagram"></i></a></div></div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- ==================== ADMIN DASHBOARD ==================== -->
+    <div id="app-admin" class="hidden flex h-screen bg-gray-100 overflow-hidden">
+        <aside class="w-64 bg-navy-900 text-white flex flex-col shadow-xl z-20 sidebar-bg">
+            <div class="p-6 border-b border-gray-800 bg-navy-800 sidebar-header-bg">
+                <h2 class="text-xl font-serif font-bold text-gold-500 brand-name-en-short">SERENITY</h2>
+            </div>
+            <nav class="flex-1 overflow-y-auto py-4">
+                <ul class="space-y-1 px-2" id="admin-menu">
+                    <li><button onclick="app.admin.renderTab('dashboard')" class="w-full text-left px-4 py-3 rounded hover:bg-white/10 flex items-center gap-3"><i class="fa-solid fa-chart-pie w-5"></i> แดชบอร์ด</button></li>
+                    <li><button onclick="app.admin.renderTab('bookings')" class="w-full text-left px-4 py-3 rounded hover:bg-white/10 flex items-center gap-3"><i class="fa-solid fa-calendar-check w-5"></i> การจอง <span id="badge-pending" class="hidden bg-red-500 text-white text-xs px-1.5 rounded-full ml-auto">0</span></button></li>
+                    <li><button onclick="app.admin.renderTab('rooms')" class="w-full text-left px-4 py-3 rounded hover:bg-white/10 flex items-center gap-3"><i class="fa-solid fa-bed w-5"></i> ห้องพัก & ราคา</button></li>
+                    <li><button onclick="app.admin.renderTab('payments')" class="w-full text-left px-4 py-3 rounded hover:bg-white/10 flex items-center gap-3"><i class="fa-solid fa-credit-card w-5"></i> การเงิน</button></li>
+                    <li><button onclick="app.admin.renderTab('reports')" class="w-full text-left px-4 py-3 rounded hover:bg-white/10 flex items-center gap-3"><i class="fa-solid fa-file-invoice w-5"></i> รายงาน</button></li>
+                    <li id="menu-users"><button onclick="app.admin.renderTab('users')" class="w-full text-left px-4 py-3 rounded hover:bg-white/10 flex items-center gap-3"><i class="fa-solid fa-users-gear w-5"></i> ผู้ใช้งาน</button></li>
+                    <li class="border-t border-gray-700 mt-2 pt-2"><button onclick="app.admin.renderTab('settings')" class="w-full text-left px-4 py-3 rounded hover:bg-white/10 flex items-center gap-3 text-gold-400"><i class="fa-solid fa-cog w-5"></i> ตั้งค่าเว็บไซต์</button></li>
+                </ul>
+            </nav>
+            <div class="p-4 border-t border-gray-800 bg-navy-800 sidebar-header-bg">
+                <div class="flex items-center gap-3 mb-3">
+                    <div class="w-8 h-8 rounded-full bg-gold-500 flex items-center justify-center font-bold text-navy-900">A</div>
+                    <div><p class="text-sm font-bold" id="admin-user-name">Admin</p><p class="text-xs text-gray-400" id="admin-user-role">Manager</p></div>
+                </div>
+                <button onclick="app.router.goFront()" class="text-xs text-gray-400 hover:text-white block mb-2">กลับหน้าเว็บไซต์</button>
+                <button onclick="app.auth.logout()" class="w-full bg-red-600/20 text-red-400 py-2 rounded hover:bg-red-600 hover:text-white transition text-sm">ออกจากระบบ</button>
+            </div>
+        </aside>
+
+        <main class="flex-1 flex flex-col overflow-hidden">
+            <header class="bg-white shadow-sm p-4 flex justify-between items-center">
+                <h2 class="text-xl font-bold text-gray-800" id="page-title">Dashboard</h2>
+                <div class="text-sm text-gray-500" id="current-date"></div>
+            </header>
+            <div id="admin-content" class="flex-1 overflow-auto p-6"></div>
+        </main>
+    </div>
+
+    <!-- ==================== MODALS (Keeping same HTML structure) ==================== -->
+    <!-- Note: HTML for modals is same as before, ensuring all ID references exist -->
+    <div id="modal-overlay" class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center backdrop-blur-sm p-4">
+        <div id="loginModal" class="modal-content hidden bg-white w-full max-w-sm rounded-lg shadow-2xl p-6">
+            <h3 class="text-2xl font-bold text-navy-900 text-center mb-4">เข้าสู่ระบบ</h3>
+            <form onsubmit="event.preventDefault(); app.auth.login(this);">
+                <input type="text" name="username" placeholder="Username" class="w-full border p-3 rounded mb-3" required>
+                <input type="password" name="password" placeholder="Password" class="w-full border p-3 rounded mb-4" required>
+                <button class="w-full bg-navy-900 text-white py-3 rounded hover:bg-gold-500 transition btn-primary">Login</button>
+            </form>
+            <div class="mt-4 text-center text-sm"><button onclick="closeModal(); openModal('registerModal')" class="text-navy-900 hover:underline">สมัครสมาชิก</button></div>
+        </div>
+        <div id="registerModal" class="modal-content hidden bg-white w-full max-w-sm rounded-lg shadow-2xl p-6">
+            <h3 class="text-2xl font-bold text-navy-900 text-center mb-4">สมัครสมาชิก</h3>
+            <form onsubmit="event.preventDefault(); app.auth.register(this);">
+                <input type="text" name="name" placeholder="ชื่อ-นามสกุล" class="w-full border p-3 rounded mb-3" required>
+                <input type="text" name="username" placeholder="Username" class="w-full border p-3 rounded mb-3" required>
+                <input type="password" name="password" placeholder="Password" class="w-full border p-3 rounded mb-4" required>
+                <button class="w-full bg-gold-500 text-white py-3 rounded hover:bg-gold-600 transition btn-primary">สมัครสมาชิก</button>
+            </form>
+            <div class="mt-4 text-center text-sm"><button onclick="closeModal(); openModal('loginModal')" class="text-navy-900 hover:underline">เข้าสู่ระบบ</button></div>
+        </div>
+        <div id="bookingModal" class="modal-content hidden bg-white w-full max-w-2xl rounded-lg shadow-2xl overflow-hidden">
+            <div class="bg-navy-900 text-white p-4 flex justify-between items-center modal-header-bg">
+                <h3 class="font-bold text-lg">จองห้องพัก</h3>
+                <button onclick="closeModal()" class="text-gray-400 hover:text-white"><i class="fa-solid fa-times"></i></button>
+            </div>
+            <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div><img id="modal-room-img" src="" class="w-full h-48 object-cover rounded mb-4"><h4 id="modal-room-name" class="text-xl font-bold text-navy-900"></h4><p id="modal-room-price" class="text-gold-600 font-bold text-lg mb-2"></p></div>
+                <form onsubmit="event.preventDefault(); app.booking.proceedToPayment(this);" class="space-y-3">
+                    <input type="hidden" id="modal-room-id" name="roomId">
+                    <div class="grid grid-cols-2 gap-2">
+                        <div><label class="text-xs text-gray-500">เช็คอิน</label><input type="date" name="checkin" id="book-checkin" class="w-full border p-2 rounded" required onchange="app.booking.calcTotal()"></div>
+                        <div><label class="text-xs text-gray-500">เช็คเอาท์</label><input type="date" name="checkout" id="book-checkout" class="w-full border p-2 rounded" required onchange="app.booking.calcTotal()"></div>
+                    </div>
+                    <div><label class="text-xs text-gray-500">ชื่อผู้เข้าพัก</label><input type="text" name="guestName" id="book-guest" class="w-full border p-2 rounded" required></div>
+                    <div><label class="text-xs text-gray-500">เบอร์โทรศัพท์</label><input type="tel" name="guestPhone" class="w-full border p-2 rounded" required></div>
+                    <div class="bg-gray-100 p-3 rounded flex justify-between items-center font-bold"><span>ราคารวม</span><span id="book-total" class="text-gold-600">฿0</span></div>
+                    <button type="submit" class="w-full bg-navy-900 text-white py-3 rounded hover:bg-gold-500 transition shadow-lg btn-primary">ดำเนินการชำระเงิน <i class="fa-solid fa-arrow-right ml-2"></i></button>
+                </form>
+            </div>
+        </div>
+        <div id="paymentModal" class="modal-content hidden bg-white w-full max-w-lg rounded-lg shadow-2xl overflow-hidden">
+            <div class="bg-navy-900 text-white p-4 flex justify-between items-center modal-header-bg">
+                <h3 class="font-bold text-lg">เลือกวิธีการชำระเงิน</h3>
+                <button onclick="closeModal()" class="text-gray-400 hover:text-white"><i class="fa-solid fa-times"></i></button>
+            </div>
+            <div class="p-6">
+                <div class="bg-gray-50 p-4 rounded mb-6 border border-gray-200">
+                    <h4 class="font-bold text-navy-900 mb-2 border-b pb-2">สรุปยอดจอง</h4>
+                    <div class="flex justify-between text-sm mb-1"><span>ห้องพัก:</span> <span id="pay-room" class="font-medium"></span></div>
+                    <div class="flex justify-between text-sm mb-1"><span>วันที่:</span> <span id="pay-dates" class="font-medium"></span></div>
+                    <div class="flex justify-between text-lg font-bold text-gold-600 mt-2 border-t pt-2 border-dashed"><span>ยอดสุทธิ:</span> <span id="pay-total"></span></div>
+                </div>
+                <div class="flex gap-2 mb-4" id="payment-tabs">
+                    <button onclick="app.booking.switchPaymentTab('bank')" id="tab-bank" class="flex-1 py-2 border rounded text-sm font-bold transition bg-navy-900 text-white border-navy-900">โอนเงิน</button>
+                    <button onclick="app.booking.switchPaymentTab('card')" id="tab-card" class="flex-1 py-2 border rounded text-sm font-bold transition text-gray-500 hover:bg-gray-50">บัตรเครดิต</button>
+                </div>
+                <div id="form-bank" class="payment-content">
+                    <div class="bg-blue-50 p-4 rounded border border-blue-100 mb-4 text-sm text-blue-800"><p class="font-bold mb-1"><i class="fa-solid fa-circle-info"></i> บัญชีสำหรับโอนเงิน</p><div id="bank-details-text" class="whitespace-pre-line">...</div></div>
+                    <label class="block text-sm font-bold text-gray-700 mb-2">อัปโหลดสลิป (Slip)</label>
+                    <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:bg-gray-50 transition relative">
+                        <input type="file" id="slip-upload" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" accept="image/*" onchange="this.nextElementSibling.innerHTML = '<i class=\'fa-solid fa-check text-green-500 text-2xl\'></i><br>' + this.files[0].name">
+                        <div class="text-gray-400 pointer-events-none"><i class="fa-solid fa-cloud-arrow-up text-3xl mb-2"></i><br>คลิกเลือกรูปภาพ</div>
+                    </div>
+                    <button onclick="app.booking.confirmPayment('bank')" class="w-full mt-6 bg-navy-900 text-white py-3 rounded hover:bg-gold-500 transition shadow-lg btn-primary">ยืนยันการแจ้งโอน</button>
+                </div>
+                <div id="form-card" class="payment-content hidden">
+                    <div class="space-y-3">
+                        <input type="text" class="w-full border p-2 rounded" placeholder="Card Number">
+                        <div class="grid grid-cols-2 gap-3"><input type="text" class="w-full border p-2 rounded" placeholder="MM/YY"><input type="password" class="w-full border p-2 rounded" placeholder="CVV"></div>
+                        <input type="text" class="w-full border p-2 rounded" placeholder="Name on Card">
+                    </div>
+                    <button onclick="app.booking.confirmPayment('card')" class="w-full mt-6 bg-gold-500 text-white py-3 rounded hover:bg-gold-600 transition shadow-lg btn-primary">ชำระเงินทันที</button>
+                </div>
+            </div>
+        </div>
+        <div id="slipModal" class="modal-content hidden bg-white w-full max-w-lg rounded-lg shadow-2xl overflow-hidden">
+            <div class="bg-navy-900 text-white p-4 flex justify-between items-center modal-header-bg">
+                <h3 class="font-bold text-lg">ตรวจสอบสลิป</h3>
+                <button onclick="closeModal()" class="text-gray-400 hover:text-white"><i class="fa-solid fa-times"></i></button>
+            </div>
+            <div class="p-6 text-center">
+                <div class="mb-4 bg-gray-100 rounded p-2 flex items-center justify-center min-h-[300px]">
+                    <img id="slip-check-img" src="" class="max-h-[400px] max-w-full rounded shadow">
+                </div>
+                <div class="flex gap-4 justify-center">
+                    <button id="btn-reject-slip" class="px-6 py-2 border border-red-500 text-red-500 rounded hover:bg-red-50">ปฏิเสธ</button>
+                    <button id="btn-approve-slip" class="px-6 py-2 bg-green-500 text-white rounded hover:bg-green-600 shadow">อนุมัติ</button>
+                </div>
+            </div>
+        </div>
+        <div id="roomEditorModal" class="modal-content hidden bg-white w-full max-w-lg rounded-lg shadow-2xl p-6">
+            <h3 class="font-bold text-lg mb-4">จัดการห้องพัก</h3>
+            <form onsubmit="event.preventDefault(); app.rooms.save(this);" class="space-y-4">
+                <input type="hidden" name="id">
+                <input type="text" name="name" placeholder="ชื่อห้อง" class="w-full border p-2 rounded" required>
+                <div class="grid grid-cols-2 gap-4"><input type="number" name="price" placeholder="ราคา" class="w-full border p-2 rounded" required><select name="status" class="w-full border p-2 rounded"><option value="available">ว่าง</option><option value="maintenance">ปิดปรับปรุง</option></select></div>
+                <input type="text" name="image" placeholder="URL รูปภาพ" class="w-full border p-2 rounded">
+                <input type="text" name="amenities" placeholder="สิ่งอำนวยความสะดวก" class="w-full border p-2 rounded">
+                <button class="w-full bg-gold-500 text-white py-2 rounded hover:bg-gold-600 btn-secondary">บันทึก</button>
+            </form>
+        </div>
+        <div id="userEditorModal" class="modal-content hidden bg-white w-full max-w-md rounded-lg shadow-2xl p-6">
+            <h3 class="font-bold text-lg mb-4">จัดการผู้ใช้งาน</h3>
+            <form onsubmit="event.preventDefault(); app.admin.saveUser(this);" class="space-y-4">
+                <input type="text" name="username" placeholder="Username" class="w-full border p-2 rounded" required>
+                <input type="password" name="password" placeholder="Password" class="w-full border p-2 rounded" required>
+                <input type="text" name="name" placeholder="ชื่อ-นามสกุล" class="w-full border p-2 rounded" required>
+                <select name="role" class="w-full border p-2 rounded"><option value="staff">Staff</option><option value="admin">Admin</option></select>
+                <button class="w-full bg-gold-500 text-white py-2 rounded hover:bg-gold-600 btn-secondary">บันทึก</button>
+            </form>
+        </div>
+        <div id="receiptModal" class="modal-content hidden bg-white w-full max-w-md rounded shadow-2xl p-8">
+            <div id="receipt-print-area">
+                <div class="text-center mb-6 border-b pb-4"><h2 class="font-serif text-2xl font-bold text-navy-900 brand-name-th">SERENITY</h2><p class="text-gray-500">Receipt / Tax Invoice</p></div>
+                <div class="flex justify-between mb-2"><span class="text-gray-500">Date:</span><span id="rcpt-date" class="font-medium"></span></div>
+                <div class="flex justify-between mb-4"><span class="text-gray-500">Booking ID:</span><span id="rcpt-id" class="font-medium"></span></div>
+                <div class="mb-4"><p class="text-gray-500 text-xs">Bill To:</p><p id="rcpt-name" class="font-bold"></p></div>
+                <table class="w-full mb-4 text-sm"><tr class="border-b"><th class="text-left py-2">Description</th><th class="text-right py-2">Amount</th></tr><tr><td class="py-2" id="rcpt-desc"></td><td class="text-right py-2" id="rcpt-amount"></td></tr><tr class="font-bold border-t"><td class="py-2">Total</td><td class="text-right py-2" id="rcpt-total"></td></tr></table>
+            </div>
+            <div class="flex justify-end gap-2 mt-4"><button onclick="closeModal()" class="px-4 py-2 text-gray-600">Close</button><button onclick="printReceipt()" class="px-4 py-2 bg-navy-900 text-white rounded btn-primary">Print</button></div>
+        </div>
+    </div>
+
+    <!-- ==================== LOGIC (Updated to fetch API) ==================== -->
+    <script>
+        const $ = (id) => document.getElementById(id);
+        const formatTHB = (n) => new Intl.NumberFormat('th-TH', { style: 'currency', currency: 'THB' }).format(n);
+        const generateID = (prefix) => prefix + Math.floor(100000 + Math.random() * 900000);
+        let adminChartInstance = null, reportRevenueChartInstance = null, reportStatusChartInstance = null;
+        const API_URL = '/api';
+
+        function showToast(msg, type='success') {
+            const c = $('toast-container'); const e = document.createElement('div');
+            const cls = type==='error'?'bg-red-500':'bg-green-500'; const ic = type==='error'?'fa-times-circle':'fa-check-circle';
+            e.className = `${cls} text-white px-6 py-3 rounded shadow-lg flex items-center gap-3 toast-enter`;
+            e.innerHTML = `<i class="fa-solid ${ic}"></i> <span>${msg}</span>`;
+            c.appendChild(e); setTimeout(()=>{ e.style.opacity='0'; setTimeout(()=>e.remove(),300);},3000);
+        }
+
+        // API ADAPTER (Replaces LocalStorage DB)
+        const DB = {
+            async get(table) {
+                const res = await fetch(`${API_URL}/${table}`);
+                return await res.json();
+            },
+            async add(table, data) {
+                const res = await fetch(`${API_URL}/${table}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                return await res.json();
+            },
+            async update(table, id, data) {
+                await fetch(`${API_URL}/${table}/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+            },
+            async delete(table, id) {
+                await fetch(`${API_URL}/${table}/${id}`, { method: 'DELETE' });
+            }
+        };
+
+        function exportData(table) {
+            DB.get(table).then(data => {
+                if(!data || data.length === 0) return showToast('ไม่มีข้อมูล', 'error');
+                data = data.map(item => {
+                    const newItem = { ...item };
+                    if (newItem.slip && newItem.slip.length > 100) newItem.slip = "Image Attached";
+                    return newItem;
+                });
+                try {
+                    const wb = XLSX.utils.book_new();
+                    const ws = XLSX.utils.json_to_sheet(data);
+                    XLSX.utils.book_append_sheet(wb, ws, table);
+                    XLSX.writeFile(wb, `${table}_report.xlsx`);
+                } catch (e) { console.error(e); showToast('Error Exporting', 'error'); }
+            });
+        }
+
+        const app = {
+            currentUser: null,
+            async init() {
+                try { 
+                    this.auth.check(); 
+                    await this.rooms.renderPublic(); 
+                    await this.applySettings(); 
+                    $('current-date').innerText = new Date().toLocaleDateString('th-TH'); 
+                } catch(e){console.error(e);}
+            },
+            async applySettings() {
+                const s = await DB.get('settings'); 
+                if(!s || !s.brand) return;
+                
+                document.querySelectorAll('.brand-name-th').forEach(e=>e.innerText=s.brand.name_th);
+                document.querySelectorAll('.brand-name-en').forEach(e=>e.innerText=s.brand.name_en);
+                document.querySelectorAll('.brand-slogan').forEach(e=>e.innerText=s.brand.slogan);
+                document.querySelectorAll('.brand-address').forEach(e=>e.innerText=s.brand.address);
+                document.querySelectorAll('.brand-phone').forEach(e=>e.innerText=s.brand.phone);
+                document.querySelectorAll('.brand-email').forEach(e=>e.innerText=s.brand.email);
+                $('brand-checkin').innerText = s.brand.checkin || '14:00'; $('brand-checkout').innerText = s.brand.checkout || '12:00';
+                if(s.brand.line_oa) $('brand-line').innerText = s.brand.line_oa;
+                
+                const logo = $('brand-logo-img');
+                if(s.brand.logo) { logo.src=s.brand.logo; logo.classList.remove('hidden'); document.querySelectorAll('.brand-logo-icon').forEach(e=>e.classList.add('hidden')); }
+                
+                if(s.social) {
+                    const fb=$('social-fb'), ln=$('social-line'), ig=$('social-ig');
+                    if(s.social.facebook){ fb.href=s.social.facebook; fb.classList.remove('hidden'); }
+                    if(s.social.line){ ln.href=s.social.line; ln.classList.remove('hidden'); }
+                    if(s.social.instagram){ ig.href=s.social.instagram; ig.classList.remove('hidden'); }
+                }
+                if(s.seo) {
+                    document.title = s.seo.title;
+                    document.querySelector('meta[name="description"]').setAttribute("content", s.seo.desc);
+                    document.querySelector('meta[name="keywords"]').setAttribute("content", s.seo.keywords);
+                }
+                if(s.theme) $('dynamic-theme-style').innerHTML = `.text-gold-500,.text-gold-600,.text-gold-400{color:${s.theme.primary}!important}.bg-gold-500,.btn-primary{background-color:${s.theme.primary}!important}.text-navy-900,.brand-name-th{color:${s.theme.secondary}!important}.bg-navy-900,.footer-bg,.sidebar-bg,.modal-header-bg,.btn-secondary{background-color:${s.theme.secondary}!important}.sidebar-header-bg{background-color:${s.theme.secondary}!important;filter:brightness(0.8)}.text-white{color:#fff!important} body{font-family:'${s.theme.font || 'Prompt'}', sans-serif; font-size: ${s.theme.size || 16}px;}`;
+            },
+            router: {
+                goAdmin() { if(!app.currentUser || !['admin','staff'].includes(app.currentUser.role)) return alert('Access Denied'); $('app-front').classList.add('hidden'); $('app-admin').classList.remove('hidden'); app.admin.renderTab('dashboard'); },
+                goFront() { $('app-admin').classList.add('hidden'); $('app-front').classList.remove('hidden'); }
+            },
+            auth: {
+                check() { const u=sessionStorage.getItem('currentUser'); if(u) { app.currentUser=JSON.parse(u); this.updateUI(); } },
+                async login(f) { 
+                    const users = await DB.get('users');
+                    const u=users.find(x=>x.username===f.username.value && x.password===f.password.value); 
+                    if(u){ app.currentUser=u; sessionStorage.setItem('currentUser',JSON.stringify(u)); this.updateUI(); closeModal(); showToast('Welcome'); if(['admin','staff'].includes(u.role)) app.router.goAdmin(); } else showToast('Error','error'); 
+                },
+                async register(f) { 
+                    const users = await DB.get('users');
+                    if(users.find(u=>u.username===f.username.value)) return showToast('Taken','error'); 
+                    await DB.add('users',{id:generateID('U'), ...Object.fromEntries(new FormData(f)), role:'member'}); 
+                    showToast('Success'); closeModal(); openModal('loginModal'); 
+                },
+                logout() { app.currentUser=null; sessionStorage.removeItem('currentUser'); this.updateUI(); app.router.goFront(); },
+                updateUI() {
+                    const u=app.currentUser;
+                    if(u) { $('nav-auth-guest').classList.add('hidden'); $('nav-auth-user').classList.remove('hidden'); $('nav-auth-user').classList.add('flex'); $('user-display-name').innerText=u.name; if(['admin','staff'].includes(u.role)) $('btn-go-admin').classList.remove('hidden'); $('admin-user-name').innerText=u.name; $('admin-user-role').innerText=u.role.toUpperCase(); if(u.role!=='admin') $('menu-users').classList.add('hidden'); else $('menu-users').classList.remove('hidden'); }
+                    else { $('nav-auth-guest').classList.remove('hidden'); $('nav-auth-user').classList.add('hidden'); $('nav-auth-user').classList.remove('flex'); $('btn-go-admin').classList.add('hidden'); }
+                }
+            },
+            rooms: {
+                async renderPublic() { 
+                    const rooms = await DB.get('rooms');
+                    $('public-room-grid').innerHTML = rooms.filter(r=>r.status==='available').map(r=>`<div class="bg-white rounded-lg shadow-lg overflow-hidden hover:-translate-y-1 transition duration-300"><div class="h-56 overflow-hidden"><img src="${r.image}" class="w-full h-full object-cover hover:scale-110 transition duration-500" onerror="this.src='https://via.placeholder.com/400'"></div><div class="p-6"><div class="flex justify-between items-start mb-2"><h3 class="text-xl font-bold text-navy-900">${r.name}</h3><span class="text-gold-600 font-bold text-lg">${formatTHB(r.price)}</span></div><div class="text-xs text-gray-500 mb-4 flex flex-wrap gap-2">${r.amenities.split(',').map(a=>`<span class="bg-gray-100 px-2 py-1 rounded">${a}</span>`).join('')}</div><button onclick="app.booking.open('${r.id}')" class="w-full border border-navy-900 text-navy-900 py-2 rounded hover:bg-navy-900 hover:text-white transition btn-primary hover:text-white">จองห้องพัก</button></div></div>`).join(''); 
+                },
+                async save(f) { 
+                    const id=f.id.value; 
+                    const d={name:f.name.value, price:parseInt(f.price.value), status:f.status.value, image:f.image.value||'https://via.placeholder.com/400', amenities:f.amenities.value}; 
+                    id ? await DB.update('rooms',id,d) : await DB.add('rooms',{id:generateID('R'), ...d}); 
+                    showToast('Saved'); closeModal(); app.admin.renderTab('rooms'); this.renderPublic(); 
+                },
+                async delete(id) { if(confirm('Delete?')) { await DB.delete('rooms', id); app.admin.renderTab('rooms'); this.renderPublic(); } }
+            },
+            booking: {
+                currentRoom: null, tempData: null,
+                async open(id) { 
+                    if(!app.currentUser) return openModal('loginModal'); 
+                    const rooms = await DB.get('rooms');
+                    const r=rooms.find(x=>x.id===id); this.currentRoom=r; $('modal-room-id').value=r.id; $('modal-room-name').innerText=r.name; $('modal-room-price').innerText=formatTHB(r.price); $('modal-room-img').src=r.image; $('book-guest').value=app.currentUser.name; $('book-checkin').value=new Date().toISOString().split('T')[0]; let t=new Date(); t.setDate(t.getDate()+1); $('book-checkout').value=t.toISOString().split('T')[0]; this.calcTotal(); if($('slip-upload')) $('slip-upload').value=''; openModal('bookingModal'); 
+                },
+                calcTotal() { const d1=new Date($('book-checkin').value), d2=new Date($('book-checkout').value); $('book-total').innerText=formatTHB(Math.max(1,(d2-d1)/864e5)*this.currentRoom.price); },
+                proceedToPayment(f) {
+                    this.tempData = { roomId:f.roomId.value, roomName:this.currentRoom.name, checkin:f.checkin.value, checkout:f.checkout.value, guest:f.guestName.value, phone:f.guestPhone.value, total:parseFloat($('book-total').innerText.replace(/,/g,'').replace(/[^\d.]/g,'')) };
+                    closeModal(); this.openPaymentModal();
+                },
+                async openPaymentModal() {
+                    const d=this.tempData; $('pay-room').innerText=d.roomName; $('pay-dates').innerText=`${d.checkin} - ${d.checkout}`; $('pay-total').innerText=formatTHB(d.total);
+                    const settings = await DB.get('settings');
+                    const b=settings.payment_methods.find(m=>m.id==='bank'); $('bank-details-text').innerText=b?b.details:'-';
+                    this.switchPaymentTab('bank'); openModal('paymentModal');
+                },
+                switchPaymentTab(t) {
+                    $('tab-bank').className='flex-1 py-2 border rounded text-sm font-bold transition text-gray-500 hover:bg-gray-50'; $('tab-card').className= $('tab-bank').className;
+                    $(`tab-${t}`).className='flex-1 py-2 border rounded text-sm font-bold transition bg-navy-900 text-white border-navy-900';
+                    document.querySelectorAll('.payment-content').forEach(e=>e.classList.add('hidden')); $(`form-${t}`).classList.remove('hidden');
+                },
+                confirmPayment(m) {
+                    if(m==='bank' && !$('slip-upload').files.length) return showToast('กรุณาแนบสลิป','error');
+                    const d=this.tempData;
+                    const saveBooking = async (slipUrl = null) => {
+                        const s = m==='card'?'paid':'pending_payment';
+                        const bk = { id:generateID('BK'), ...d, status:s, slip:slipUrl, created:new Date().toISOString() };
+                        const res = await DB.add('bookings', bk);
+                        await DB.add('notifications', {id:generateID('N'), msg:`New Booking (${m}) by ${d.guest}`, date:new Date().toISOString(), read:0});
+                        if(s==='paid') { await DB.add('payments',{id:generateID('TX'), bookingId:res.id, amount:d.total, date:new Date().toISOString(), method:'Card'}); showToast('Payment Successful'); }
+                        else showToast('Slip Uploaded. Waiting for approval.');
+                        closeModal(); app.admin.updateBadge();
+                    };
+                    if(m==='bank') {
+                        const file = $('slip-upload').files[0];
+                        const reader = new FileReader();
+                        reader.onloadend = () => saveBooking(reader.result);
+                        reader.readAsDataURL(file);
+                    } else saveBooking();
+                }
+            },
+            admin: {
+                async updateBadge() { 
+                    const bks = await DB.get('bookings');
+                    const c=bks.filter(b=>b.status.includes('pending')).length; $('badge-pending').innerText=c; $('badge-pending').classList.toggle('hidden',c===0); 
+                },
+                async renderTab(t) {
+                    $('page-title').innerText = t.toUpperCase(); const c=$('admin-content');
+                    if(t==='dashboard') {
+                        const bks=await DB.get('bookings'); const notifs=await DB.get('notifications');
+                        const rev=bks.filter(b=>b.status==='paid'||b.status==='checked-in').reduce((s,b)=>s+b.total,0); 
+                        c.innerHTML=`<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"><div class="bg-white p-6 rounded shadow border-l-4 border-gold-500"><div>Revenue</div><div class="text-3xl font-bold">${formatTHB(rev)}</div></div><div class="bg-white p-6 rounded shadow border-l-4 border-blue-500"><div>Bookings</div><div class="text-3xl font-bold">${bks.length}</div></div><div class="bg-white p-6 rounded shadow border-l-4 border-green-500"><div>Pendings</div><div class="text-3xl font-bold">${bks.filter(b=>b.status.includes('pending')).length}</div></div></div><div class="grid grid-cols-1 md:grid-cols-2 gap-6"><div class="bg-white p-6 rounded shadow h-96"><canvas id="adminChart"></canvas></div><div class="bg-white p-6 rounded shadow h-96 overflow-y-auto"><h3 class="font-bold mb-4">Activity</h3><ul>${notifs.reverse().slice(0,5).map(n=>`<li class="border-b py-2 text-sm flex justify-between"><span>${n.msg}</span><span class="text-xs text-gray-400">${new Date(n.date).toLocaleTimeString()}</span></li>`).join('')}</ul></div></div>`;
+                        setTimeout(()=>{ if(adminChartInstance){adminChartInstance.destroy();} const ctx=$('adminChart'); if(ctx) adminChartInstance=new Chart(ctx,{type:'bar',data:{labels:['Mon','Tue','Wed','Thu','Fri'],datasets:[{label:'Rev',data:[5000,10000,7500,12000,9000],backgroundColor:'#c5a028'}]},options:{maintainAspectRatio:false}}); },100);
+                    } else if(t==='bookings') {
+                        const bks=(await DB.get('bookings')).reverse();
+                        c.innerHTML=`<div class="bg-white rounded shadow overflow-hidden"><table class="w-full text-left text-sm"><thead class="bg-gray-50 uppercase"><tr><th class="px-6 py-3">ID</th><th class="px-6 py-3">Guest</th><th class="px-6 py-3">Status</th><th class="px-6 py-3 text-right">Actions</th></tr></thead><tbody>${bks.map(b=>`
+                            <tr class="hover:bg-gray-50"><td class="px-6 py-4">${b.id}</td><td class="px-6 py-4 font-bold">${b.guest}<br><span class="text-xs font-normal text-gray-500">${b.phone}</span></td>
+                            <td class="px-6 py-4"><span class="px-2 py-1 rounded text-xs uppercase ${b.status.includes('pending')?'bg-yellow-100 text-yellow-800':'bg-green-100 text-green-800'}">${b.status}</span></td>
+                            <td class="px-6 py-4 text-right space-x-2">
+                                ${b.status==='pending_payment' ? `<button onclick="app.admin.checkSlip('${b.id}')" class="text-blue-600 hover:underline">Check Slip</button>` : ''}
+                                <button onclick="openReceipt('${b.id}')"><i class="fa-solid fa-print text-gray-500"></i></button>
+                            </td></tr>`).join('')}</tbody></table></div>`;
+                    } else if(t==='users') {
+                        const us=await DB.get('users');
+                        c.innerHTML=`<div class="mb-4 flex justify-end"><button onclick="openModal('userEditorModal')" class="bg-navy-900 text-white px-4 py-2 rounded btn-primary">Add User</button></div>
+                        <div class="bg-white rounded shadow overflow-hidden"><table class="w-full text-left text-sm"><thead class="bg-gray-50 uppercase"><tr><th class="px-6 py-3">User</th><th class="px-6 py-3">Role</th><th class="px-6 py-3 text-right">Action</th></tr></thead><tbody>${us.map(u=>`<tr><td class="px-6 py-4 font-bold">${u.username}<br><span class="text-xs font-normal text-gray-400">${u.name}</span></td><td class="px-6 py-4 uppercase text-xs">${u.role}</td><td class="px-6 py-4 text-right">${u.role!=='admin'||u.username!=='admin'?`<button onclick="app.admin.deleteUser('${u.id}')" class="text-red-500 hover:text-red-700">Delete</button>`:''}</td></tr>`).join('')}</tbody></table></div>`;
+                    } else if(t==='settings') {
+                        const s=await DB.get('settings');
+                        c.innerHTML=`<div class="bg-white rounded shadow">
+                            <div class="border-b flex"><button class="px-6 py-3 font-bold border-b-2 border-gold-500 text-gold-600">ข้อมูลทั่วไป (Brand)</button><button class="px-6 py-3 text-gray-500">การแสดงผล (Display)</button><button class="px-6 py-3 text-gray-500">SEO & System</button></div>
+                            <div class="p-6">
+                                <form onsubmit="event.preventDefault(); app.admin.saveSettings(this);" class="space-y-6">
+                                    <div class="grid md:grid-cols-2 gap-4">
+                                        <h4 class="md:col-span-2 font-bold text-navy-900 border-b pb-2">1. ข้อมูลแบรนด์ (Brand Info)</h4>
+                                        <div><label class="text-xs text-gray-500">ชื่อโรงแรม (TH)</label><input name="name_th" value="${s.brand.name_th}" class="border p-2 w-full rounded"></div>
+                                        <div><label class="text-xs text-gray-500">Hotel Name (EN)</label><input name="name_en" value="${s.brand.name_en}" class="border p-2 w-full rounded"></div>
+                                        <div class="md:col-span-2"><label class="text-xs text-gray-500">สโลแกน</label><input name="slogan" value="${s.brand.slogan}" class="border p-2 w-full rounded"></div>
+                                        <div><label class="text-xs text-gray-500">Logo URL</label><input name="logo" value="${s.brand.logo || ''}" class="border p-2 w-full rounded" placeholder="https://..."></div>
+                                        <div><label class="text-xs text-gray-500">Line OA</label><input name="line_oa" value="${s.brand.line_oa || ''}" class="border p-2 w-full rounded" placeholder="@hotel"></div>
+                                        <div><label class="text-xs text-gray-500">เบอร์โทร</label><input name="phone" value="${s.brand.phone}" class="border p-2 w-full rounded"></div>
+                                        <div><label class="text-xs text-gray-500">อีเมล</label><input name="email" value="${s.brand.email}" class="border p-2 w-full rounded"></div>
+                                        <div class="md:col-span-2"><label class="text-xs text-gray-500">ที่อยู่</label><input name="address" value="${s.brand.address}" class="border p-2 w-full rounded"></div>
+                                        <div><label class="text-xs text-gray-500">Check-in</label><input name="checkin" value="${s.brand.checkin || '14:00'}" class="border p-2 w-full rounded"></div>
+                                        <div><label class="text-xs text-gray-500">Check-out</label><input name="checkout" value="${s.brand.checkout || '12:00'}" class="border p-2 w-full rounded"></div>
+                                    </div>
+                                    <div class="grid md:grid-cols-2 gap-4 mt-6">
+                                        <h4 class="md:col-span-2 font-bold text-navy-900 border-b pb-2">2. การแสดงผล (Display)</h4>
+                                        <div><label class="text-xs text-gray-500">สีหลัก (Primary)</label><input type="color" name="primary" value="${s.theme.primary}" class="h-10 w-full border p-1 rounded"></div>
+                                        <div><label class="text-xs text-gray-500">สีรอง (Secondary)</label><input type="color" name="secondary" value="${s.theme.secondary}" class="h-10 w-full border p-1 rounded"></div>
+                                        <div><label class="text-xs text-gray-500">Font Family</label><select name="font" class="border p-2 w-full rounded"><option value="Prompt">Prompt</option><option value="Sarabun">Sarabun</option><option value="Kanit">Kanit</option></select></div>
+                                        <div><label class="text-xs text-gray-500">Base Font Size (px)</label><input type="number" name="size" value="${s.theme.size || 16}" class="border p-2 w-full rounded"></div>
+                                        <div class="md:col-span-2"><label class="text-xs text-gray-500">Social Media</label><div class="flex gap-2"><input name="social_fb" value="${s.social.facebook}" class="border p-2 w-full rounded" placeholder="FB"><input name="social_line" value="${s.social.line}" class="border p-2 w-full rounded" placeholder="Line URL"><input name="social_ig" value="${s.social.instagram}" class="border p-2 w-full rounded" placeholder="IG"></div></div>
+                                    </div>
+                                    <div class="mt-6">
+                                        <h4 class="font-bold text-navy-900 border-b pb-2">3. SEO & System</h4>
+                                        <div class="grid gap-4 mt-2">
+                                            <div><label class="text-xs text-gray-500">Meta Title</label><input name="seo_title" value="${s.seo.title}" class="border p-2 w-full rounded"></div>
+                                            <div><label class="text-xs text-gray-500">Meta Description</label><textarea name="seo_desc" class="border p-2 w-full rounded">${s.seo.desc}</textarea></div>
+                                            <div><label class="text-xs text-gray-500">Keywords</label><input name="seo_keywords" value="${s.seo.keywords || ''}" class="border p-2 w-full rounded"></div>
+                                        </div>
+                                    </div>
+                                    <button class="w-full py-3 bg-navy-900 text-white rounded btn-primary shadow-lg hover:shadow-xl transition">บันทึกการตั้งค่าทั้งหมด</button>
+                                </form>
+                            </div>
+                        </div>`;
+                    } else if(t==='rooms') {
+                         const rms=await DB.get('rooms');
+                         c.innerHTML=`<div class="mb-4 flex justify-end"><button onclick="openRoomEditor()" class="bg-navy-900 text-white px-4 py-2 rounded btn-primary">Add Room</button></div><div class="grid grid-cols-1 md:grid-cols-3 gap-6">${rms.map(r=>`<div class="bg-white rounded shadow p-4"><h3 class="font-bold">${r.name}</h3><p>${formatTHB(r.price)}</p><button onclick="openRoomEditor('${r.id}')" class="mt-2 text-sm text-blue-600">Edit</button> <button onclick="app.rooms.delete('${r.id}')" class="mt-2 text-sm text-red-600 ml-2">Delete</button></div>`).join('')}</div>`;
+                    } else if(t==='payments') {
+                        const s = await DB.get('settings');
+                        const pm = (await DB.get('payments')).reverse();
+                        c.innerHTML=`
+                        <div class="mb-8 bg-white p-6 rounded shadow">
+                            <h3 class="font-bold text-lg mb-4 text-navy-900 border-b pb-2">ตั้งค่าช่องทางการชำระเงิน</h3>
+                            <div class="space-y-4">
+                                ${s.payment_methods.map((m, i) => `
+                                    <div class="flex items-center justify-between border-b pb-4">
+                                        <div class="flex-1 mr-4">
+                                            <div class="font-bold text-gray-700">${m.name}</div>
+                                            <input type="text" value="${m.details}" onchange="app.admin.updatePaymentDetail(${i}, this.value)" class="text-xs text-gray-500 w-full border-b border-dashed outline-none focus:border-gold-500 bg-transparent mt-1" placeholder="รายละเอียดบัญชี/ระบบ">
+                                        </div>
+                                        <div class="relative inline-block w-10 align-middle select-none">
+                                            <input type="checkbox" id="pay-toggle-${i}" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer transition-all duration-300 ${m.enabled ? 'right-0 border-green-400' : 'left-0 border-gray-300'}" ${m.enabled ? 'checked' : ''} onclick="app.admin.togglePayment(${i})"/>
+                                            <label for="pay-toggle-${i}" class="toggle-label block overflow-hidden h-6 rounded-full cursor-pointer ${m.enabled ? 'bg-green-400' : 'bg-gray-300'}"></label>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                        <h3 class="font-bold text-lg mb-4">ประวัติการชำระเงิน</h3>
+                        <div class="bg-white rounded shadow overflow-hidden"><table class="w-full text-left text-sm"><thead class="bg-gray-50"><tr><th class="p-3">ID</th><th class="p-3">Amount</th><th class="p-3">Method</th><th class="p-3">Date</th></tr></thead><tbody>${pm.map(p=>`<tr><td class="p-3">${p.id}</td><td class="p-3 font-bold">${formatTHB(p.amount)}</td><td class="p-3">${p.method}</td><td class="p-3 text-gray-500">${new Date(p.date).toLocaleDateString()}</td></tr>`).join('')}</tbody></table></div>`;
+                    } else if (t === 'reports') {
+                        const bks = await DB.get('bookings');
+                        const revenueData = bks.filter(b => b.status !== 'cancelled').map(b => b.total);
+                        const revenueLabels = bks.filter(b => b.status !== 'cancelled').map(b => new Date(b.created).toLocaleDateString());
+                        const statusCounts = { paid: 0, pending: 0, cancelled: 0 };
+                        bks.forEach(b => {
+                            if (b.status === 'paid' || b.status === 'checked-in') statusCounts.paid++;
+                            else if (b.status.includes('pending')) statusCounts.pending++;
+                            else if (b.status === 'cancelled') statusCounts.cancelled++;
+                        });
+
+                        c.innerHTML = `
+                        <div class="space-y-6">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div class="bg-white p-6 rounded shadow"><h3 class="font-bold mb-4">รายได้รวม</h3><div class="h-64"><canvas id="reportRevenueChart"></canvas></div></div>
+                                <div class="bg-white p-6 rounded shadow"><h3 class="font-bold mb-4">สถานะการจอง</h3><div class="h-64"><canvas id="reportStatusChart"></canvas></div></div>
+                            </div>
+                            <div class="bg-white p-6 rounded shadow"><h3 class="font-bold mb-4 text-navy-900 border-b pb-2">ดาวน์โหลดรายงาน</h3><div class="flex gap-4"><button onclick="exportData('bookings')" class="flex items-center gap-2 bg-green-600 text-white px-6 py-3 rounded hover:bg-green-700 transition"><i class="fa-solid fa-file-excel"></i> ข้อมูลการจอง</button><button onclick="exportData('payments')" class="flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded hover:bg-blue-700 transition"><i class="fa-solid fa-file-invoice-dollar"></i> ข้อมูลการเงิน</button></div></div>
+                        </div>`;
+
+                        setTimeout(() => {
+                            if(reportRevenueChartInstance) { reportRevenueChartInstance.destroy(); }
+                            if(reportStatusChartInstance) { reportStatusChartInstance.destroy(); }
+                            const ctxRev = $('reportRevenueChart'); const ctxStat = $('reportStatusChart');
+                            if(ctxRev) reportRevenueChartInstance = new Chart(ctxRev, {type: 'line', data: {labels: revenueLabels, datasets: [{ label: 'Income', data: revenueData, borderColor: '#c5a028', tension: 0.4 }]}, options: { maintainAspectRatio: false }});
+                            if(ctxStat) reportStatusChartInstance = new Chart(ctxStat, {type: 'doughnut', data: {labels: ['Paid', 'Pending', 'Cancelled'], datasets: [{ data: [statusCounts.paid, statusCounts.pending, statusCounts.cancelled], backgroundColor: ['#48bb78', '#ecc94b', '#f56565'] }]}, options: { maintainAspectRatio: false }});
+                        }, 100);
+                    }
+                    this.updateBadge();
+                },
+                async checkSlip(id) {
+                    const bookings = await DB.get('bookings');
+                    const b = bookings.find(x=>x.id===id);
+                    if(!b || !b.slip) return alert('No slip found');
+                    $('slip-check-img').src = b.slip;
+                    $('btn-approve-slip').onclick = async () => {
+                        await DB.update('bookings', id, { status: 'paid' });
+                        await DB.add('payments', { id: generateID('TX'), bookingId: id, amount: b.total, date: new Date().toISOString(), method: 'Bank Transfer' });
+                        showToast('Payment Approved'); closeModal(); app.admin.renderTab('bookings');
+                    };
+                    $('btn-reject-slip').onclick = async () => {
+                        if(confirm('Reject this payment?')) {
+                            await DB.update('bookings', id, { status: 'cancelled' });
+                            showToast('Payment Rejected', 'error'); closeModal(); app.admin.renderTab('bookings');
+                        }
+                    };
+                    openModal('slipModal');
+                },
+                async saveSettings(f) {
+                    let s = await DB.get('settings');
+                    s.brand={...s.brand, name_th:f.name_th.value, name_en:f.name_en.value, slogan:f.slogan.value, logo:f.logo.value, line_oa:f.line_oa.value, phone:f.phone.value, email:f.email.value, address:f.address.value, checkin:f.checkin.value, checkout:f.checkout.value};
+                    s.theme={primary:f.primary.value, secondary:f.secondary.value, font:f.font.value, size:f.size.value};
+                    s.seo={title:f.seo_title.value, desc:f.seo_desc.value, keywords:f.seo_keywords.value};
+                    s.social={facebook:f.social_fb.value, line:f.social_line.value, instagram:f.social_ig.value};
+                    await DB.add('settings', s); // Server handles update if ID=1 exists
+                    app.applySettings(); showToast('Settings Saved');
+                },
+                async togglePayment(idx) {
+                    const s = await DB.get('settings'); s.payment_methods[idx].enabled = !s.payment_methods[idx].enabled;
+                    await DB.add('settings', s); this.renderTab('payments');
+                },
+                async updatePaymentDetail(idx, val) {
+                    const s = await DB.get('settings'); s.payment_methods[idx].details = val;
+                    await DB.add('settings', s);
+                },
+                async saveUser(f) { await DB.add('users', { id:generateID('U'), ...Object.fromEntries(new FormData(f)) }); showToast('User Added'); closeModal(); this.renderTab('users'); },
+                async deleteUser(id) { if(confirm('Delete?')) { await DB.delete('users',id); this.renderTab('users'); } }
+            }
+        };
+
+        function openModal(id){$(id).parentNode.classList.remove('hidden');$(id).classList.remove('hidden');document.body.classList.add('modal-open');}
+        function closeModal(){$('modal-overlay').classList.add('hidden');document.querySelectorAll('.modal-content').forEach(e=>e.classList.add('hidden'));document.body.classList.remove('modal-open');}
+        async function openRoomEditor(id=null){ const f=$('roomEditorModal').querySelector('form'); f.reset(); if(id){const rooms = await DB.get('rooms'); const r=rooms.find(x=>x.id===id); f.id.value=r.id;f.name.value=r.name;f.price.value=r.price;f.image.value=r.image;f.amenities.value=r.amenities;} openModal('roomEditorModal'); }
+        async function openReceipt(id){ const bookings=await DB.get('bookings'); const b=bookings.find(x=>x.id===id); if(b){ $('rcpt-id').innerText=b.id; $('rcpt-name').innerText=b.guest; $('rcpt-desc').innerText=`Room: ${b.roomName}`; $('rcpt-amount').innerText=formatTHB(b.total); $('rcpt-total').innerText=formatTHB(b.total); $('rcpt-date').innerText=new Date(b.created).toLocaleDateString(); openModal('receiptModal'); } }
+        function printReceipt(){ const c=$('receipt-print-area').innerHTML; const w=window.open('',''); w.document.write(`<html><head><link href="https://cdn.tailwindcss.com" rel="stylesheet"></head><body class="p-10">${c}</body></html>`); w.document.close(); setTimeout(()=>w.print(),500); }
+        window.onload = () => app.init();
+    </script>
+</body>
+</html>
