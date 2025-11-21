@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>The Serenity Residence | ระบบบริหารจัดการโรงแรมครบวงจร</title>
     <meta name="description" content="Luxury Hotel Booking System">
+    <meta name="keywords" content="hotel, booking, luxury"> <!-- Added missing meta tag -->
     
     <!-- Libraries -->
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -354,21 +355,20 @@
                 if(!localStorage.getItem('hotel_users')) localStorage.setItem('hotel_users', JSON.stringify([{ id: 'U1', username: 'admin', password: '123', name: 'General Manager', role: 'admin' }]));
                 ['hotel_payments','hotel_bookings','hotel_notifications'].forEach(k => { if(!localStorage.getItem(k)) localStorage.setItem(k, JSON.stringify([])); });
                 
-                // Auto-repair settings if missing social
                 let s = JSON.parse(localStorage.getItem('hotel_settings'));
                 const defaultSettings = {
                     brand: { name_th: 'SERENITY', name_en: 'Experience Luxury', slogan: 'พักผ่อนในบรรยากาศสุดพิเศษ', address: '123 Beach Road, Phuket', phone: '02-123-4567', email: 'info@serenity.com', logo: '', lat: '', lng: '', line_oa: '', checkin: '14:00', checkout: '12:00' },
                     social: { facebook: '', line: '', instagram: '' },
-                    theme: { primary: '#c5a028', secondary: '#1a202c', font: 'Prompt', size: '16' },
+                    theme: { primary: '#c5a028', secondary: '#1a202c', font: 'Prompt', size: '16', banner: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1920&q=80' },
                     seo: { title: 'Serenity Hotel', desc: 'Luxury Hotel', keywords: 'hotel, travel' },
                     payment_methods: [{ id: 'bank', name: 'โอนเงิน', enabled: true, details: 'กสิกรไทย 123-4-56789-0' }, { id: 'card', name: 'บัตรเครดิต', enabled: true, details: 'Stripe/Omise' }]
                 };
 
                 if(!s || !s.brand) {
                     localStorage.setItem('hotel_settings', JSON.stringify(defaultSettings));
-                } else if (!s.social) {
-                    // Patch missing social
-                    s.social = defaultSettings.social;
+                } else {
+                    if(!s.social) s.social = defaultSettings.social;
+                    if(!s.theme.banner) s.theme.banner = defaultSettings.theme.banner;
                     localStorage.setItem('hotel_settings', JSON.stringify(s));
                 }
             },
@@ -379,7 +379,6 @@
             add(table, data) {
                 if(USE_SERVER) return fetch(`${API_URL}/${table}`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) }).then(r=>r.json());
                 
-                // FIX: Settings check for LocalStorage
                 if (table === 'settings') {
                     localStorage.setItem(`hotel_${table}`, JSON.stringify(data));
                     return data;
@@ -452,15 +451,32 @@
                 const logo = $('brand-logo-img');
                 if(s.brand.logo) { logo.src=s.brand.logo; logo.classList.remove('hidden'); document.querySelectorAll('.brand-logo-icon').forEach(e=>e.classList.add('hidden')); }
                 
-                // FIX: Explicitly hide/show social icons based on values
                 if(s.social) {
                     const fb = $('social-fb'), line = $('social-line'), ig = $('social-ig');
                     if(s.social.facebook) { fb.href = s.social.facebook; fb.classList.remove('hidden'); } else { fb.classList.add('hidden'); }
                     if(s.social.line) { line.href = s.social.line; line.classList.remove('hidden'); } else { line.classList.add('hidden'); }
                     if(s.social.instagram) { ig.href = s.social.instagram; ig.classList.remove('hidden'); } else { ig.classList.add('hidden'); }
                 }
-
-                if(s.theme) $('dynamic-theme-style').innerHTML = `.text-gold-500,.text-gold-600,.text-gold-400{color:${s.theme.primary}!important}.bg-gold-500,.btn-primary{background-color:${s.theme.primary}!important}.text-navy-900,.brand-name-th{color:${s.theme.secondary}!important}.bg-navy-900,.footer-bg,.sidebar-bg,.modal-header-bg,.btn-secondary{background-color:${s.theme.secondary}!important}.sidebar-header-bg{background-color:${s.theme.secondary}!important;filter:brightness(0.8)}.text-white{color:#fff!important} body{font-family:'${s.theme.font || 'Prompt'}', sans-serif; font-size: ${s.theme.size || 16}px;}`;
+                if(s.seo) {
+                    document.title = s.seo.title;
+                    const metaDesc = document.querySelector('meta[name="description"]');
+                    if(metaDesc) metaDesc.setAttribute("content", s.seo.desc);
+                    // Add meta keywords if missing in DOM, or update if exists
+                    let metaKeys = document.querySelector('meta[name="keywords"]');
+                    if (!metaKeys && s.seo.keywords) {
+                         metaKeys = document.createElement('meta');
+                         metaKeys.name = "keywords";
+                         document.head.appendChild(metaKeys);
+                    }
+                    if(metaKeys) metaKeys.setAttribute("content", s.seo.keywords);
+                }
+                if(s.theme) {
+                    $('dynamic-theme-style').innerHTML = `.text-gold-500,.text-gold-600,.text-gold-400{color:${s.theme.primary}!important}.bg-gold-500,.btn-primary{background-color:${s.theme.primary}!important}.text-navy-900,.brand-name-th{color:${s.theme.secondary}!important}.bg-navy-900,.footer-bg,.sidebar-bg,.modal-header-bg,.btn-secondary{background-color:${s.theme.secondary}!important}.sidebar-header-bg{background-color:${s.theme.secondary}!important;filter:brightness(0.8)}.text-white{color:#fff!important} body{font-family:'${s.theme.font || 'Prompt'}', sans-serif; font-size: ${s.theme.size || 16}px;}`;
+                    if(s.theme.banner) {
+                        const header = document.querySelector('header#home');
+                        if(header) header.style.backgroundImage = `url('${s.theme.banner}')`;
+                    }
+                }
             },
             router: {
                 goAdmin() { if(!app.currentUser || !['admin','staff'].includes(app.currentUser.role)) return alert('Access Denied'); $('app-front').classList.add('hidden'); $('app-admin').classList.remove('hidden'); app.admin.renderTab('dashboard'); },
@@ -535,15 +551,12 @@
                         
                         closeModal(); app.admin.updateBadge();
                         
-                        // UPDATE: Populate Success Modal with details
+                        // Populate Success Modal
                         $('success-id').innerText = bk.id;
                         $('success-room').innerText = d.roomName;
                         $('success-total').innerText = formatTHB(d.total);
-                        
-                        // Setup Download Button
                         const btn = $('btn-download-booking'); 
                         btn.onclick = () => { closeModal(); openReceipt(bk.id); }; 
-                        
                         openModal('successModal');
                     };
                     if(m==='bank') {
@@ -551,25 +564,12 @@
                         reader.onloadend = () => saveBooking(reader.result); reader.readAsDataURL(file);
                     } else saveBooking();
                 },
-                // NEW: Open My Bookings Modal
                 async openMyBookings() {
                     if(!app.currentUser) return;
                     let allBookings = DB.get('bookings'); if(allBookings instanceof Promise) allBookings = await allBookings;
                     const myBookings = allBookings.filter(b => b.guest === app.currentUser.name).reverse();
-                    const tbody = $('my-bookings-list');
-                    tbody.innerHTML = '';
-                    if(myBookings.length === 0) {
-                        $('no-bookings-msg').classList.remove('hidden');
-                    } else {
-                        $('no-bookings-msg').classList.add('hidden');
-                        myBookings.forEach(b => {
-                            const row = document.createElement('tr');
-                            row.className = "hover:bg-gray-50 border-b";
-                            const statusColor = b.status === 'paid' ? 'text-green-600' : (b.status === 'cancelled' ? 'text-red-600' : 'text-yellow-600');
-                            row.innerHTML = `<td class="p-3 font-medium">${b.id}</td><td class="p-3 text-sm">${b.roomName}</td><td class="p-3 text-sm">${b.checkin}</td><td class="p-3 text-sm font-bold uppercase ${statusColor}">${b.status.replace('_', ' ')}</td><td class="p-3 text-right"><button onclick="openReceipt('${b.id}')" class="text-navy-900 hover:text-gold-600 text-sm border px-2 py-1 rounded hover:bg-gray-100"><i class="fa-solid fa-print"></i> ใบยืนยัน</button></td>`;
-                            tbody.appendChild(row);
-                        });
-                    }
+                    const tbody = $('my-bookings-list'); tbody.innerHTML = '';
+                    if(myBookings.length === 0) { $('no-bookings-msg').classList.remove('hidden'); } else { $('no-bookings-msg').classList.add('hidden'); myBookings.forEach(b => { const row = document.createElement('tr'); row.className = "hover:bg-gray-50 border-b"; const statusColor = b.status === 'paid' ? 'text-green-600' : (b.status === 'cancelled' ? 'text-red-600' : 'text-yellow-600'); row.innerHTML = `<td class="p-3 font-medium">${b.id}</td><td class="p-3 text-sm">${b.roomName}</td><td class="p-3 text-sm">${b.checkin}</td><td class="p-3 text-sm font-bold uppercase ${statusColor}">${b.status.replace('_', ' ')}</td><td class="p-3 text-right"><button onclick="openReceipt('${b.id}')" class="text-navy-900 hover:text-gold-600 text-sm border px-2 py-1 rounded hover:bg-gray-100"><i class="fa-solid fa-print"></i> ใบยืนยัน</button></td>`; tbody.appendChild(row); }); }
                     openModal('myBookingsModal');
                 }
             },
@@ -578,7 +578,6 @@
                     let bks = DB.get('bookings'); if(bks instanceof Promise) bks = await bks;
                     const c=bks.filter(b=>b.status.includes('pending')).length; $('badge-pending').innerText=c; $('badge-pending').classList.toggle('hidden',c===0); 
                 },
-                // New Tab Switching Logic
                 switchSettingsTab(tab) {
                     ['brand', 'display', 'seo'].forEach(t => {
                         const btn = $(`btn-tab-${t}`);
@@ -640,6 +639,7 @@
                                             <div><label class="text-xs text-gray-500">สีรอง</label><input type="color" name="secondary" value="${s.theme.secondary}" class="h-10 w-full border p-1 rounded"></div>
                                             <div><label class="text-xs text-gray-500">Font</label><select name="font" class="border p-2 w-full rounded"><option value="Prompt">Prompt</option><option value="Sarabun">Sarabun</option><option value="Kanit">Kanit</option></select></div>
                                             <div><label class="text-xs text-gray-500">Size (px)</label><input type="number" name="size" value="${s.theme.size || 16}" class="border p-2 w-full rounded"></div>
+                                            <div class="md:col-span-2"><label class="text-xs text-gray-500">Banner Image URL</label><input name="banner" value="${s.theme.banner || ''}" class="border p-2 w-full rounded" placeholder="https://..."></div>
                                             <div class="md:col-span-2"><label class="text-xs text-gray-500">Social Media</label><div class="flex gap-2"><input name="social_fb" value="${s.social.facebook}" class="border p-2 w-full rounded" placeholder="FB"><input name="social_line" value="${s.social.line}" class="border p-2 w-full rounded" placeholder="Line"><input name="social_ig" value="${s.social.instagram}" class="border p-2 w-full rounded" placeholder="IG"></div></div>
                                         </div>
                                     </div>
@@ -693,10 +693,22 @@
                 async saveSettings(f) {
                     let s = DB.get('settings'); if(s instanceof Promise) s=await s;
                     s.brand={...s.brand, name_th:f.name_th.value, name_en:f.name_en.value, slogan:f.slogan.value, logo:f.logo.value, line_oa:f.line_oa.value, phone:f.phone.value, email:f.email.value, address:f.address.value, checkin:f.checkin.value, checkout:f.checkout.value};
-                    s.theme={primary:f.primary.value, secondary:f.secondary.value, font:f.font.value, size:f.size.value};
+                    
+                    // Update Theme and Banner
+                    s.theme={
+                        primary:f.primary.value, 
+                        secondary:f.secondary.value, 
+                        font:f.font.value, 
+                        size:f.size.value,
+                        banner:f.banner.value // Capture banner value
+                    };
+                    
                     s.seo={title:f.seo_title.value, desc:f.seo_desc.value, keywords:f.seo_keywords.value};
                     s.social={facebook:f.social_fb.value, line:f.social_line.value, instagram:f.social_ig.value};
-                    await DB.add('settings', s); app.applySettings(); showToast('Settings Saved');
+                    
+                    await DB.add('settings', s); 
+                    app.applySettings(); 
+                    showToast('Settings Saved');
                 },
                 async togglePayment(idx) { let s = await DB.get('settings'); s.payment_methods[idx].enabled = !s.payment_methods[idx].enabled; await DB.add('settings', s); this.renderTab('payments'); },
                 async updatePaymentDetail(idx, val) { let s = await DB.get('settings'); s.payment_methods[idx].details = val; await DB.add('settings', s); },
