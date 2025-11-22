@@ -24,7 +24,7 @@ db.serialize(() => {
     // Users
     db.run(`CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, username TEXT, password TEXT, name TEXT, role TEXT)`);
     
-    // Rooms
+    // Rooms (Image column now stores JSON string of array)
     db.run(`CREATE TABLE IF NOT EXISTS rooms (id TEXT PRIMARY KEY, name TEXT, price INTEGER, status TEXT, image TEXT, amenities TEXT)`);
     
     // Bookings
@@ -41,7 +41,7 @@ db.serialize(() => {
 
     // --- SEED INITIAL DATA ---
     db.get("SELECT count(*) as count FROM users", (err, row) => {
-        if (row.count === 0) {
+        if (row && row.count === 0) {
             console.log("Seeding Users...");
             db.run(`INSERT INTO users VALUES ('U1', 'admin', '1234', 'General Manager', 'admin')`);
             db.run(`INSERT INTO users VALUES ('U2', 'user', '1234', 'Receptionist', 'staff')`);
@@ -49,28 +49,46 @@ db.serialize(() => {
     });
 
     db.get("SELECT count(*) as count FROM rooms", (err, row) => {
-        if (row.count === 0) {
-            console.log("Seeding Rooms...");
-            const rooms = [
-                ['R101', 'Deluxe Garden', 2500, 'available', 'https://images.unsplash.com/photo-1611892440504-42a792e24d32?w=500', 'WiFi,King Bed'],
-                ['R102', 'Pool Villa', 5900, 'available', 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=500', 'Pool,Jacuzzi'],
-                ['R103', 'Ocean Suite', 8500, 'available', 'https://images.unsplash.com/photo-1566665797739-1674de7a421a?w=500', 'Sea View,Butler']
-            ];
+        if (row && row.count === 0) {
+            console.log("Seeding Rooms with Multiple Images...");
             const stmt = db.prepare("INSERT INTO rooms VALUES (?, ?, ?, ?, ?, ?)");
-            rooms.forEach(r => stmt.run(r));
+            
+            // Helper to stringify image array
+            const imgs = (arr) => JSON.stringify(arr);
+
+            const originalRooms = [
+                ['R101', 'Grand Deluxe Garden', 2500, 'available', imgs(['https://images.unsplash.com/photo-1611892440504-42a792e24d32?w=800', 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=800', 'https://images.unsplash.com/photo-1590490360182-c33d57733427?w=800']), 'WiFi,King Bed,Balcony,Garden View'],
+                ['R102', 'Private Pool Villa', 5900, 'available', imgs(['https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=800', 'https://images.unsplash.com/photo-1566665797739-1674de7a421a?w=800', 'https://images.unsplash.com/photo-1576675784201-0e142b423633?w=800']), 'Private Pool,Jacuzzi,Breakfast,Butler'],
+                ['R103', 'Royal Ocean Suite', 8500, 'available', imgs(['https://images.unsplash.com/photo-1566665797739-1674de7a421a?w=800', 'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=800', 'https://images.unsplash.com/photo-1582719508461-905c673771fd?w=800']), 'Sea View,Living Room,Lounge Access,Bathtub']
+            ];
+            originalRooms.forEach(r => stmt.run(r));
+
+            // Standard Rooms
+            for (let i = 1; i <= 5; i++) {
+                const num = i.toString().padStart(2, '0');
+                stmt.run(`R2${num}`, `Standard Room ${num}`, 1200, 'available', imgs(['https://images.unsplash.com/photo-1618773928121-c32242e63f39?w=800', 'https://images.unsplash.com/photo-1595526114035-0d45ed16cfbf?w=800']), 'WiFi,TV,Shower,Air Con');
+            }
             stmt.finalize();
         }
     });
 
     db.get("SELECT count(*) as count FROM settings", (err, row) => {
-        if (row.count === 0) {
+        if (row && row.count === 0) {
             console.log("Seeding Settings...");
             const defaultSettings = {
-                brand: { name_th: 'SERENITY', name_en: 'Experience Luxury', slogan: 'พักผ่อนในบรรยากาศสุดพิเศษ', address: '123 Beach Road, Phuket', phone: '02-123-4567', email: 'info@serenity.com', logo: '', lat: '', lng: '', line_oa: '', checkin: '14:00', checkout: '12:00', policy: 'No refund', currency: 'THB', lang: 'TH' },
+                brand: { 
+                    name_th: 'SERENITY', name_en: 'Experience Luxury', slogan: 'พักผ่อนในบรรยากาศสุดพิเศษ พร้อมบริการระดับ 5 ดาว', 
+                    address: '123 Beach Road, Phuket', phone: '02-123-4567', email: 'info@serenity.com', 
+                    logo: '', lat: '', lng: '', line_oa: '', checkin: '14:00', checkout: '12:00', 
+                    policy: 'No refund', currency: 'THB', lang: 'TH' 
+                },
                 social: { facebook: '', line: '', instagram: '' },
-                theme: { primary: '#c5a028', secondary: '#1a202c', font: 'Prompt', size: '16' },
-                seo: { title: 'Serenity Hotel', desc: 'Luxury Hotel', keywords: 'hotel, travel' },
-                payment_methods: [{ id: 'bank', name: 'โอนเงิน', enabled: true, details: 'กสิกรไทย 123-4-56789-0' }, { id: 'card', name: 'บัตรเครดิต', enabled: true, details: 'Stripe/Omise' }]
+                theme: { 
+                    primary: '#c5a028', secondary: '#1a202c', font: 'Prompt', size: '16',
+                    banner: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1920&q=80' 
+                },
+                seo: { title: 'The Serenity Residence | Phuket', desc: 'Luxury Hotel in Phuket Thailand', keywords: 'hotel, travel' },
+                payment_methods: [{ id: 'bank', name: 'โอนเงินผ่านบัญชีธนาคาร', enabled: true, details: 'กสิกรไทย 123-4-56789-0' }, { id: 'card', name: 'บัตรเครดิต', enabled: true, details: 'Stripe/Omise' }]
             };
             db.run("INSERT INTO settings (id, data) VALUES (1, ?)", [JSON.stringify(defaultSettings)]);
         }
@@ -101,7 +119,8 @@ app.post('/api/:table', (req, res) => {
     const data = req.body;
 
     if (table === 'settings') {
-        db.run("UPDATE settings SET data = ? WHERE id = 1", [JSON.stringify(data)], function(err) {
+        // Upsert settings
+        db.run("INSERT OR REPLACE INTO settings (id, data) VALUES (1, ?)", [JSON.stringify(data)], function(err) {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ success: true });
         });
@@ -143,4 +162,5 @@ app.delete('/api/:table/:id', (req, res) => {
 // Start Server
 app.listen(PORT, () => {
     console.log(`Server running at http://localhost:${PORT}`);
+    console.log(`Note: To see multiple images, you might need to delete 'hotel.db' to re-seed data.`);
 });
